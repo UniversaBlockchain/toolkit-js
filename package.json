@@ -1,0 +1,31 @@
+{
+  "name": "universa-toolkit",
+  "version": "0.1.0",
+  "description": "Javascript library required to perform basic operations with Universa networks",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "mocha",
+    "build": "webpack"
+  },
+  "keywords": [
+    "network",
+    "frontend",
+    "client"
+  ],
+  "author": "Universa Blockchain Team",
+  "license": "(BSD-3-Clause OR GPL-2.0)",
+  "bugs": "https://github.com/UniversaBlockchain/toolkit-js/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/UniversaBlockchain/toolkit-js"
+  },
+  "dependencies": {
+    "universa-minicrypto": "^0.3.0",
+    "xhr-request": "^1.1.0"
+  },
+  "devDependencies": {
+    "should": "^13.2.3",
+    "webpack": "^4.41.2",
+    "webpack-cli": "^3.3.10"
+  }
+}

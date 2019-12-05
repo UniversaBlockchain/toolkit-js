@@ -1,0 +1,8 @@
+build
+node_modules
+npm-debug.log
+.jshintrc
+.jscsrc
+vendor/*
+!vendor/forge.js
+.DS_Store
