@@ -26,7 +26,7 @@ describe('Network', function() {
     catch (err) { console.log("network connection error: ", err); }
   });
 
-  it('should connect to network', async function() {
+  it('should connect to network with default topology', async function() {
     this.timeout(3000);
 
     let response;
@@ -37,11 +37,25 @@ describe('Network', function() {
     should(response.sping).eql("spong");
   });
 
-  it.skip('should connect to network with provided mainnet file', async function() {
-    const net = new Network(privateKey, { mainnetPath: "/Users/anzhu/Documents/mainnet.json" });
+  it.skip('should connect to network with provided topology file', async function() {
+    this.timeout(8000);
+    const net = new Network(privateKey, {
+      topologyPath: "/Users/anzhu/Documents/mainnet.json"
+    });
+
+    try { await net.connect(); }
+    catch (err) { console.log("network connection error: ", err); }
+
+    let response;
+
+    try { response = await net.command("sping"); }
+    catch (err) { console.log("on network command:", err); }
+
+    should(response.sping).eql("spong");
   });
 
   it('should do simple contract status check (id base64)', async function() {
+    this.timeout(3000);
     let response;
 
     try { response = await network.checkContract(approvedId); }
@@ -51,6 +65,7 @@ describe('Network', function() {
   });
 
   it('should do simple contract status check (id bytes)', async function() {
+    this.timeout(3000);
     let response;
 
     try { response = await network.checkContract(approvedId); }
@@ -59,16 +74,29 @@ describe('Network', function() {
     should(response.itemResult.state).eql("APPROVED");
   });
 
-  it('should do full status check', async function() {
+  it('should perform command with parameters', async function() {
+    this.timeout(3000);
+    let response;
+
+    try {
+      response = await network.command("getState", {
+        itemId: { __type: "HashId", composite3: approvedId }
+      });
+    }
+    catch (err) { console.log("on network command:", err); }
+
+    should(response.itemResult.state).eql("APPROVED");
+  });
+
+  it.skip('should do full status check', async function() {
     this.timeout(30000);
     let response;
 
     try { response = await network.isApprovedByNetwork(approvedId, 0.2, 30000); }
     catch (err) { console.log("on network command:", err); }
 
-    console.log(response);
+    // console.log(response);
 
-    // should(response.itemResult.state).eql("APPROVED");
-    should(1).eql(1);
+    should(response.isApproved).eql(true);
   });
 });

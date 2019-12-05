@@ -24,7 +24,9 @@ async function retry(fn, options = {}) {
 }
 
 function abortable(responsePromise, request) {
-  responsePromise.abort = () => request.abort();
+  responsePromise.abort = () => {
+    request && request.abort();
+  }
 
   return responsePromise;
 }

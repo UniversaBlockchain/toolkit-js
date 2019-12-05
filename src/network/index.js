@@ -20,45 +20,43 @@ function createHashId(id) {
   };
 }
 
-function getLocalList() {
+function getLocalList(key) {
   if (typeof window === 'undefined') return;
 
-  const listBin = localStorage.getItem("universa_toolkit-mainnet");
+  const listBin = localStorage.getItem(key);
   if (!listBin) return;
 
   const boss = new Boss();
   return boss.load(decode64(listBin));
 }
 
-function saveLocalList(nodes) {
+function saveLocalList(nodes, key) {
   if (typeof window === 'undefined') return;
 
   const topology = { list: nodes };
   const boss = new Boss();
-  localStorage.setItem("universa_toolkit-mainnet", encode64(boss.dump(topology)));
+  localStorage.setItem(key, encode64(boss.dump(topology)));
 }
 
 function getProvidedList(options) {
-  if (!options.mainnetPath) return;
+  if (!options.topologyPath) return;
 
-  return require(options.mainnetPath);
+  return require(options.topologyPath);
 }
 
 function getDefaultList() {
   return mainnet;
 }
 
-function getList(options) {
-  return (getLocalList() || getProvidedList(options) || getDefaultList()).list;
+function getList(options, key) {
+  return (getLocalList(key) || getProvidedList(options) ||
+    getDefaultList()).list;
 }
 
 class Network {
   constructor(privateKey, options = {}) {
     this.connections = {};
-
-    if (typeof window !== 'undefined') {
-
-    }
+    this.localStorageKey = options.topologyKey || "__universa_topology";
     this.nodes = getList(options).map(desc => new Node(desc));
 
     this.ready = new Promise((resolve, reject) => { this.setReady = resolve; });
@@ -89,7 +87,7 @@ class Network {
 
     const boss = new Boss();
     const nodes = boss.load(nodesPacked);
-    saveLocalList(nodes);
+    saveLocalList(nodes, this.localStorageKey);
 
     this.nodes = nodes.map(nodeDescription => new Node(nodeDescription));
 
@@ -121,14 +119,16 @@ class Network {
     return this.nodeConnection(randomIndex(this.size()));
   }
 
-  async command(name, options, connection) {
-    const conn = connection || await this.getRandomConnection();
-    let req;
+  command(name, options, connection) {
+    let req, conn;
 
-    const run = () => {
+    const run = async () => {
+      conn = conn || connection || await this.getRandomConnection();
+
       req = conn.command(name, options);
-      return req;
-    }
+
+      return await req;
+    };
 
     return abortable(retry(run, {
       attempts: 5,
@@ -172,16 +172,13 @@ class Network {
     const shouldRetry = new Set();
     const unprocessed = new Set([...Array(this.size()).keys()]);
     const requests = [];
-    const responses = [];
+    const states = [];
 
     const isPending = (state) =>
       state.indexOf("PENDING") === 0 || state.indexOf("LOCKED") === 0;
 
     const buildResult = (isApproved) => {
       return {
-        createdAt,
-        expiresAt,
-        isTestnet,
         states,
         isApproved,
         positive,
@@ -190,7 +187,6 @@ class Network {
     };
 
     async function processNode(nodeIndex) {
-      console.log("run process", nodeIndex);
       const conn = await self.nodeConnection(nodeIndex);
       const req = self.checkContract(id);
       let response;
@@ -204,7 +200,7 @@ class Network {
 
         if (isPending(state)) shouldRetry.add(nodeIndex);
         else {
-          responses.push(itemResult);
+          states.push(itemResult);
           if (state === "APPROVED") positive.add(nodeIndex);
           else negative.add(nodeIndex);
         }
@@ -243,18 +239,15 @@ class Network {
       }
 
       if (positive.size >= Nt) {
-        requests.map(req => {
-          console.log(req);
-          req.abort();
-        });
+        requests.map(req => req.abort());
         return buildResult(true);
       }
 
       const now = (new Date()).getTime();
 
       if (now > end) {
-        // requests.map(req => req.abort());
-        console.log(negative, positive);
+        requests.map(req => req.abort());
+
         throw new Error("requests timeout");
       }
 
