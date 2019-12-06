@@ -26,6 +26,12 @@ describe('Network', function() {
     catch (err) { console.log("network connection error: ", err); }
   });
 
+  // it.only('should build topology', async function() {
+  //   // console.log(network.topology);
+
+  //   should(1).eql(1);
+  // });
+
   it('should connect to network with default topology', async function() {
     this.timeout(3000);
 

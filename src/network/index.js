@@ -2,6 +2,7 @@ const request = require('xhr-request');
 const Universa = require('universa-minicrypto');
 
 const Node = require('./node');
+const Topology = require('./topology');
 const { retry, abortable } = require('../utils');
 const NodeConnection = require('./node_connection');
 
@@ -20,79 +21,79 @@ function createHashId(id) {
   };
 }
 
-function getLocalList(key) {
-  if (typeof window === 'undefined') return;
+// function getLocalList(key) {
+//   if (typeof window === 'undefined') return;
 
-  const listBin = localStorage.getItem(key);
-  if (!listBin) return;
+//   const listBin = localStorage.getItem(key);
+//   if (!listBin) return;
 
-  const boss = new Boss();
-  return boss.load(decode64(listBin));
-}
+//   const boss = new Boss();
+//   return boss.load(decode64(listBin));
+// }
 
-function saveLocalList(nodes, key) {
-  if (typeof window === 'undefined') return;
+// function saveLocalList(nodes, key) {
+//   if (typeof window === 'undefined') return;
 
-  const topology = { list: nodes };
-  const boss = new Boss();
-  localStorage.setItem(key, encode64(boss.dump(topology)));
-}
+//   const topology = { list: nodes };
+//   const boss = new Boss();
+//   localStorage.setItem(key, encode64(boss.dump(topology)));
+// }
 
-function getProvidedList(options) {
-  if (!options.topologyPath) return;
+// function getProvidedList(options) {
+//   if (!options.topologyPath) return;
 
-  return require(options.topologyPath);
-}
+//   return require(options.topologyPath);
+// }
 
-function getDefaultList() {
-  return mainnet;
-}
+// function getDefaultList() {
+//   return mainnet;
+// }
 
-function getList(options, key) {
-  return (getLocalList(key) || getProvidedList(options) ||
-    getDefaultList()).list;
-}
+// function getLastTopology(options, key) {
+//   return (getLocalList(key) || getProvidedList(options) ||
+//     getDefaultList()).list;
+// }
 
 class Network {
   constructor(privateKey, options = {}) {
     this.connections = {};
-    this.localStorageKey = options.topologyKey || "__universa_topology";
-    this.nodes = getList(options).map(desc => new Node(desc));
-
+    this.topologyKey = options.topologyKey || "__universa_topology";
+    this.topologyFile = options.topologyFile || "../../mainnet.json";
+    this.topology = this.getLastTopology();
     this.ready = new Promise((resolve, reject) => { this.setReady = resolve; });
     this.options = options;
     this.authKey = privateKey;
   }
 
-  size() { return this.nodes.length; }
+  size() { return this.topology.size(); }
 
-  async connect() {
-    let selectedNode;
+  getLastTopology() {
+    if (typeof window !== 'undefined') {
+      const bin = localStorage.getItem(this.topologyKey);
 
-    const randomNode = () => this.nodes[randomIndex(this.size())];
-    const loadNetSigned = () => {
-      selectedNode = randomNode();
+      if (bin) {
+        const boss = new Boss();
 
-      return NodeConnection.request("GET", `${selectedNode.https}/netsigned`);
-    };
+        return Topology.load(boss.load(decode64(listBin)));
+      }
+    }
 
-    const netsigned = await retry(loadNetSigned, {
-      attempts: 5,
-      interval: 1000
-    });
-    const { signature, nodesPacked, version } = netsigned;
-    const isValid = selectedNode.key.verifyExtended(signature, nodesPacked);
+    return Topology.load(require(this.topologyFile));
+  }
 
-    if (!isValid) throw new Error("invalid node signature");
+  saveNewTopology() {
+    if (typeof window === 'undefined') return;
 
     const boss = new Boss();
-    const nodes = boss.load(nodesPacked);
-    saveLocalList(nodes, this.localStorageKey);
+    const packed = this.topology.pack();
+    localStorage.setItem(this.topologyKey, encode64(boss.dump(packed)));
+  }
 
-    this.nodes = nodes.map(nodeDescription => new Node(nodeDescription));
-
-    console.log(`Connecting to the Universa network v${version}`);
-    console.log(`Loaded network configuration, ${this.size()} nodes`)
+  async connect() {
+    console.log(`Connecting to the Universa network`);
+    await this.topology.update();
+    console.log(`Loaded network configuration, ${this.size()} nodes`);
+    this.saveNewTopology();
 
     this.setReady(true);
 
@@ -104,7 +105,7 @@ class Network {
 
     await this.ready;
 
-    const node = this.nodes[idx];
+    const node = this.topology.nodes[idx];
     const connection = new NodeConnection(node, this.authKey, this.options);
 
     await connection.connect();
@@ -162,7 +163,7 @@ class Network {
     if (tLevel > 0.9) tLevel = 0.9;
 
     const end = new Date((new Date()).getTime() + millisToWait).getTime();
-    let Nt = Math.ceil(this.size() * trustLevel);
+    let Nt = Math.ceil(this.size() * tLevel);
     if (Nt < 1) Nt = 1;
     const N10 = (Math.floor(this.size() * 0.1)) + 1;
     const Nn = Math.max(Nt + 1, N10);
