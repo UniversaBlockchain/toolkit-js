@@ -5,6 +5,7 @@ const Node = require('./node');
 const Topology = require('./topology');
 const { retry, abortable, readJSON } = require('../utils');
 const NodeConnection = require('./node_connection');
+const mainnet = require('../../mainnet.json');
 
 const { Boss } = Universa;
 const { decode64, encode64 } = Universa.utils;
@@ -22,7 +23,6 @@ class Network {
     this.options = options;
     this.connections = {};
     this.topologyKey = options.topologyKey || "__universa_topology";
-    this.topologyFile = options.topologyFile || "../../mainnet.json";
     this.ready = new Promise((resolve, reject) => { this.setReady = resolve; });
     this.authKey = privateKey;
   }
@@ -36,15 +36,18 @@ class Network {
       if (bin) {
         const boss = new Boss();
 
-        return Topology.load(boss.load(decode64(listBin)));
+        return Topology.load(boss.load(decode64(bin)));
       }
     }
 
     if (this.options.topology) return this.options.topology;
 
-    const packed = await readJSON(this.topologyFile);
+    if (this.options.topologyFile) {
+      const packed = await readJSON(this.topologyFile);
+      return Topology.load(packed);
+    }
 
-    return Topology.load(packed);
+    return Topology.load(mainnet);
   }
 
   saveNewTopology() {

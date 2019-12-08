@@ -1,4 +1,5 @@
-const should = require('should');
+const chai = require('chai');
+const should = chai.should();
 const Universa = require('universa-minicrypto');
 
 const { Network, Topology } = require('../src');
@@ -18,7 +19,7 @@ process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 describe('Network', function() {
   describe("Connection", function() {
-    it('should connect to network with default topology', async () => {
+    it.only('should connect to network with default topology', async () => {
       let response;
       const network = new Network(privateKey);
 
@@ -28,7 +29,7 @@ describe('Network', function() {
       try { response = await network.command("sping"); }
       catch (err) { console.log("network command error:", err); }
 
-      should(response.sping).eql("spong");
+      response.sping.should.equal("spong");
     });
 
     it('should connect to network with provided topology file', async function() {
@@ -45,7 +46,7 @@ describe('Network', function() {
       try { response = await net.command("sping"); }
       catch (err) { console.log("on network command:", err); }
 
-      should(response.sping).eql("spong");
+      response.sping.should.equal("spong");
     });
 
     it('should connect to network with provided topology', async function() {
@@ -64,7 +65,7 @@ describe('Network', function() {
       try { response = await net.command("sping"); }
       catch (err) { console.log("on network command:", err); }
 
-      should(response.sping).eql("spong");
+      response.sping.should.equal("spong");
     });
   });
 
@@ -74,8 +75,8 @@ describe('Network', function() {
       const topology = Topology.load(packed);
       const repacked = topology.pack();
 
-      should(packed.updated).eql(repacked.updated);
-      should(packed.list.length).eql(repacked.list.length);
+      packed.updated.should.equal(repacked.updated);
+      packed.list.length.should.equal(repacked.list.length);
     });
   });
 
@@ -96,7 +97,7 @@ describe('Network', function() {
       try { response = await network.checkContract(approvedId); }
       catch (err) { console.log("on network command:", err); }
 
-      should(response.itemResult.state).eql("APPROVED");
+      response.itemResult.state.should.equal("APPROVED");
     });
 
     it('should do simple contract status check (id bytes)', async function() {
@@ -106,7 +107,7 @@ describe('Network', function() {
       try { response = await network.checkContract(approvedId); }
       catch (err) { console.log("on network command:", err); }
 
-      should(response.itemResult.state).eql("APPROVED");
+      response.itemResult.state.should.equal("APPROVED");
     });
 
     it('should perform command with parameters', async function() {
@@ -120,7 +121,7 @@ describe('Network', function() {
       }
       catch (err) { console.log("on network command:", err); }
 
-      should(response.itemResult.state).eql("APPROVED");
+      response.itemResult.state.should.equal("APPROVED");
     });
 
     it('should do full status check', async function() {
@@ -130,7 +131,7 @@ describe('Network', function() {
       try { isApproved = await network.isApproved(approvedId, 0.6); }
       catch (err) { console.log("on network command:", err); }
 
-      should(isApproved).eql(true);
+      isApproved.should.equal(true);
     });
   });
 });
