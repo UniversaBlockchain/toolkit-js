@@ -35,7 +35,7 @@ function abortable(responsePromise, request) {
 
 function readJSON(path) {
   return new Promise((resolve, reject) => {
-    fs.readFile(require.resolve(path), (err, data) => {
+    fs.readFile(path, (err, data) => {
       if (err) reject(err);
       else resolve(JSON.parse(data));
     });

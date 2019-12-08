@@ -43,7 +43,7 @@ class Network {
     if (this.options.topology) return this.options.topology;
 
     if (this.options.topologyFile) {
-      const packed = await readJSON(this.topologyFile);
+      const packed = await readJSON(this.options.topologyFile);
       return Topology.load(packed);
     }
 

@@ -19,7 +19,7 @@ process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 
 describe('Network', function() {
   describe("Connection", function() {
-    it.only('should connect to network with default topology', async () => {
+    it('should connect to network with default topology', async () => {
       let response;
       const network = new Network(privateKey);
 
@@ -35,7 +35,7 @@ describe('Network', function() {
     it('should connect to network with provided topology file', async function() {
       this.timeout(8000);
       const net = new Network(privateKey, {
-        topologyPath: "/Users/anzhu/Documents/mainnet.json"
+        topologyFile: "/Users/anzhu/Documents/mainnet.json"
       });
 
       try { await net.connect(); }

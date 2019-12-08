@@ -30,7 +30,7 @@ describe('Network', function() {
     it.skip('should connect to network with provided topology file', async function() {
       this.timeout(8000);
       const net = new Network(privateKey, {
-        topologyPath: "/Users/anzhu/Documents/mainnet.json"
+        topologyFile: "/Users/anzhu/Documents/mainnet.json"
       });
 
       try { await net.connect(); }

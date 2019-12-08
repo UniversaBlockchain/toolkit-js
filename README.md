@@ -72,7 +72,7 @@ const { PrivateKey } = Universa.pki;
 
 // privateKey is PrivateKey instance
 const network = new Network(privateKey, {
-  topologyPath: "/path/to/mainnet.json"
+  topologyFile: "/path/to/mainnet.json"
 });
 let response;
 
