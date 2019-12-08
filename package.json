@@ -6,7 +6,7 @@
   "scripts": {
     "coverage": "nyc npm run test",
     "test": "mocha --timeout 5000",
-    "build": "webpack"
+    "build": "NODE_ENV=production webpack --config webpack.prod.js"
   },
   "keywords": [
     "network",
@@ -27,7 +27,9 @@
   "devDependencies": {
     "nyc": "^14.1.1",
     "should": "^13.2.3",
+    "uglifyjs-webpack-plugin": "^2.2.0",
     "webpack": "^4.41.2",
-    "webpack-cli": "^3.3.10"
+    "webpack-cli": "^3.3.10",
+    "webpack-merge": "^4.2.2"
   }
 }

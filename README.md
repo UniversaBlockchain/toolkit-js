@@ -137,7 +137,9 @@ const { PrivateKey } = Universa.pki;
 
 // privateKey is PrivateKey instance
 const network = new Network(privateKey);
-const { topology } = network; // Topology instance
+await network.connect();
+
+const { topology } = network; // Updated topology instance
 ```
 
 Update topology

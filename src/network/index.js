@@ -3,14 +3,12 @@ const Universa = require('universa-minicrypto');
 
 const Node = require('./node');
 const Topology = require('./topology');
-const { retry, abortable } = require('../utils');
+const { retry, abortable, readJSON } = require('../utils');
 const NodeConnection = require('./node_connection');
 
 const { Boss } = Universa;
 const { decode64, encode64 } = Universa.utils;
 const { PrivateKey, PublicKey } = Universa.pki;
-
-const mainnet = require('../../mainnet.json');
 
 function createHashId(id) {
   return {
@@ -25,14 +23,13 @@ class Network {
     this.connections = {};
     this.topologyKey = options.topologyKey || "__universa_topology";
     this.topologyFile = options.topologyFile || "../../mainnet.json";
-    this.topology = this.getLastTopology();
     this.ready = new Promise((resolve, reject) => { this.setReady = resolve; });
     this.authKey = privateKey;
   }
 
   size() { return this.topology.size(); }
 
-  getLastTopology() {
+  async getLastTopology() {
     if (typeof window !== 'undefined') {
       const bin = localStorage.getItem(this.topologyKey);
 
@@ -45,7 +42,9 @@ class Network {
 
     if (this.options.topology) return this.options.topology;
 
-    return Topology.load(require(this.topologyFile));
+    const packed = await readJSON(this.topologyFile);
+
+    return Topology.load(packed);
   }
 
   saveNewTopology() {
@@ -57,6 +56,7 @@ class Network {
   }
 
   async connect() {
+    this.topology = await this.getLastTopology();
     // console.log(`Connecting to the Universa network`);
     await this.topology.update();
     // console.log(`Loaded network configuration, ${this.size()} nodes`);

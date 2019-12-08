@@ -1,3 +1,5 @@
+const fs = require('fs');
+
 async function retry(fn, options = {}) {
   const attempts = options.attempts || 5;
   const interval = options.interval || 1000;
@@ -31,5 +33,15 @@ function abortable(responsePromise, request) {
   return responsePromise;
 }
 
+function readJSON(path) {
+  return new Promise((resolve, reject) => {
+    fs.readFile(require.resolve(path), (err, data) => {
+      if (err) reject(err);
+      else resolve(JSON.parse(data));
+    });
+  });
+}
+
+exports.readJSON = readJSON;
 exports.retry = retry;
 exports.abortable = abortable;
