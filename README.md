@@ -140,6 +140,14 @@ const network = new Network(privateKey);
 const { topology } = network; // Topology instance
 ```
 
+Update topology
+```js
+const { Topology } = Universa;
+
+const topology = Topology.load(require("/path/to/mainnet.json"));
+const done = await topology.update(); // updates topology that then can be saved
+```
+
 Pack topology to save as file
 ```js
 const fs = require('fs');
@@ -212,16 +220,4 @@ npm test
 Run coverage
 ```bash
 npm run coverage
-```
-
-### NOTES
-
-node-forge has broken method for encoding bytes, it should be replaced with:
-
-```js
-util.binary.raw.encode = function(bytes) {
-  return bytes.reduce(function (data, byte) {
-    return data + String.fromCharCode(byte);
-  }, '');
-};
 ```

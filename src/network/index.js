@@ -200,4 +200,6 @@ class Network {
   }
 }
 
+Network.Topology = Topology;
+
 module.exports = Network;
