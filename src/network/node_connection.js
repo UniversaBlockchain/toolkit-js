@@ -20,7 +20,7 @@ class NodeConnection {
     const clientNonce = randomBytes(47);
     const boss = new Boss();
 
-    console.log(`setting up protected connection to ${url}`);
+    // console.log(`setting up protected connection to ${url}`);
 
     const connectionData = await this.request("connect", {
       client_key: this.authKey.publicKey.pack("BOSS"),
@@ -70,7 +70,7 @@ class NodeConnection {
     if (response.status !== "OK")
       throw new Error(`wrong status ${response.status}, authentication failed`);
 
-    console.log(`connected, system says: ${response.message}`);
+    // console.log(`connected, system says: ${response.message}`);
 
     return this;
   }

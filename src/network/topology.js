@@ -1,10 +1,10 @@
 const Node = require('./node');
 
+const randomIndex = (arrayLength) => ~~(arrayLength * Math.random());
+
 class Topology {
   constructor(nodes, updatedAt) {
     this.nodes = nodes;
-    this.nodesById = {};
-    this.nodes.map(node => this.nodesById[node.id] = node);
     this.updatedAt = updatedAt;
   }
 
@@ -32,7 +32,7 @@ class Topology {
       });
     }
 
-    function buildFinal(level = 0) {
+    function buildFinal({ trustLevel }) {
       const nodes = {};
 
       for (var id in stats) {
@@ -45,8 +45,8 @@ class Topology {
 
         let trusted;
 
-        if (level !== 0)
-          trusted = list.find(n => n.count/total >= level);
+        if (trustLevel !== 0)
+          trusted = list.find(n => n.count/total >= trustLevel);
         else {
           const maximum = Math.max.apply(null, list.map(n => n.count));
           trusted = list.find(n => n.count === maximum);
@@ -58,12 +58,12 @@ class Topology {
       return nodes;
     }
 
-    function colloquium(trustLevel, nodes) {
+    function colloquium(trustLevel, nodesToAsk) {
       return new Promise((resolve, reject) => {
         let Nt = Math.ceil(self.size() * trustLevel);
         if (Nt < 1) Nt = 1;
         let resultFound = false;
-        const source = nodes || self.nodesById;
+        const source = nodesToAsk || self.nodes;
         const ids = Object.keys(source);
 
         function success() {
@@ -93,6 +93,7 @@ class Topology {
             const response = await source[id].getTopology();
             processResponse(id, response);
           } catch(err) {
+            // console.log("On topology request: ", err);
             failed[id] = true;
             if (ids.length > 0) processNext();
             else failure(new Error("confirmed responses < 40%"));
@@ -116,35 +117,55 @@ class Topology {
     try {
       await colloquium(0.4);
     } catch(err) {
-      const tempResult = buildFinal(0);
+
+      const tempResult = buildFinal({ trustLevel: 0 });
       for (var id in tempResult) if (!failed[id]) delete tempResult[id];
 
       await colloquium(0.4, tempResult);
     }
 
-    const result = buildFinal(0.9);
-    this.nodesById = result;
-
-    const list = [];
-    for (var id in result) list.push(result[id]);
-    this.nodes = list;
-
+    this.nodes = buildFinal({ trustLevel: 0.9 });
     this.updatedAt = new Date();
   }
 
-  size() { return this.nodes.length; }
+  size() { return Object.keys(this.nodes).length; }
 
   pack() {
+    const list = [];
+    for (var id in this.nodes) list.push(this.nodes[id].info());
+
     return {
-      list: this.nodes.map(n => n.info()),
-      updated: this.updatedAt.getTime()
+      list,
+      updated: parseInt(this.updatedAt.getTime()/1000)
     };
+  }
+
+  getRandomNode() {
+    return this.getNode(this.getRandomNodeId());
+  }
+
+  getRandomNodeId() {
+    const ids = Object.keys(this.nodes);
+    return ids[randomIndex(ids.length)];
+  }
+
+  getNode(id) {
+    return this.nodes[id];
   }
 }
 
-Topology.load = (packed) => new Topology(
-  packed.list.map(info => new Node(info)),
-  new Date(packed.updatedAt)
-);
+Topology.load = (packed) => {
+  const nodes = {};
+
+  packed.list.map(info => {
+    const node = new Node(info);
+    nodes[node.id] = node;
+  });
+
+  return new Topology(
+    nodes,
+    new Date(packed.updated * 1000)
+  );
+}
 
 module.exports = Topology;

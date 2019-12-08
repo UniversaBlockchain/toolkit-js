@@ -4,7 +4,8 @@
   "description": "Javascript library required to perform basic operations with Universa networks",
   "main": "src/index.js",
   "scripts": {
-    "test": "mocha",
+    "coverage": "nyc npm run test",
+    "test": "mocha --timeout 5000",
     "build": "webpack"
   },
   "keywords": [
@@ -24,6 +25,7 @@
     "xhr-request": "^1.1.0"
   },
   "devDependencies": {
+    "nyc": "^14.1.1",
     "should": "^13.2.3",
     "webpack": "^4.41.2",
     "webpack-cli": "^3.3.10"

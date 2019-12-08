@@ -69,10 +69,7 @@ class Node {
 
     if (!isVerified) throw new Error("node signature mismatch");
 
-    if (Math.random() > 0.5) throw new Error("failed");
-
     const boss = new Boss();
-
     return boss.load(packed);
   }
 }

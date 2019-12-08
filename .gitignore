@@ -6,3 +6,4 @@ npm-debug.log
 vendor/*
 !vendor/forge.js
 .DS_Store
+.nyc_output

@@ -12,8 +12,6 @@ const { PrivateKey, PublicKey } = Universa.pki;
 
 const mainnet = require('../../mainnet.json');
 
-const randomIndex = (arrayLength) => ~~(arrayLength * Math.random());
-
 function createHashId(id) {
   return {
     __type: "HashId",
@@ -21,47 +19,14 @@ function createHashId(id) {
   };
 }
 
-// function getLocalList(key) {
-//   if (typeof window === 'undefined') return;
-
-//   const listBin = localStorage.getItem(key);
-//   if (!listBin) return;
-
-//   const boss = new Boss();
-//   return boss.load(decode64(listBin));
-// }
-
-// function saveLocalList(nodes, key) {
-//   if (typeof window === 'undefined') return;
-
-//   const topology = { list: nodes };
-//   const boss = new Boss();
-//   localStorage.setItem(key, encode64(boss.dump(topology)));
-// }
-
-// function getProvidedList(options) {
-//   if (!options.topologyPath) return;
-
-//   return require(options.topologyPath);
-// }
-
-// function getDefaultList() {
-//   return mainnet;
-// }
-
-// function getLastTopology(options, key) {
-//   return (getLocalList(key) || getProvidedList(options) ||
-//     getDefaultList()).list;
-// }
-
 class Network {
   constructor(privateKey, options = {}) {
+    this.options = options;
     this.connections = {};
     this.topologyKey = options.topologyKey || "__universa_topology";
     this.topologyFile = options.topologyFile || "../../mainnet.json";
     this.topology = this.getLastTopology();
     this.ready = new Promise((resolve, reject) => { this.setReady = resolve; });
-    this.options = options;
     this.authKey = privateKey;
   }
 
@@ -78,6 +43,8 @@ class Network {
       }
     }
 
+    if (this.options.topology) return this.options.topology;
+
     return Topology.load(require(this.topologyFile));
   }
 
@@ -90,26 +57,24 @@ class Network {
   }
 
   async connect() {
-    console.log(`Connecting to the Universa network`);
+    // console.log(`Connecting to the Universa network`);
     await this.topology.update();
-    console.log(`Loaded network configuration, ${this.size()} nodes`);
+    // console.log(`Loaded network configuration, ${this.size()} nodes`);
     this.saveNewTopology();
-
     this.setReady(true);
 
     return this;
   }
 
-  async nodeConnection(idx) {
-    if (this.connections[idx]) return this.connections[idx];
+  async nodeConnection(nodeId) {
+    const node = this.topology.getNode(nodeId);
+    if (this.connections[nodeId]) return this.connections[nodeId];
 
     await this.ready;
 
-    const node = this.topology.nodes[idx];
     const connection = new NodeConnection(node, this.authKey, this.options);
-
     await connection.connect();
-    this.connections[idx] = connection;
+    this.connections[nodeId] = connection;
 
     return connection;
   }
@@ -117,7 +82,7 @@ class Network {
   async getRandomConnection() {
     await this.ready;
 
-    return this.nodeConnection(randomIndex(this.size()));
+    return this.nodeConnection(this.topology.getRandomNodeId());
   }
 
   command(name, options, connection) {
@@ -134,7 +99,7 @@ class Network {
     return abortable(retry(run, {
       attempts: 5,
       interval: 1000,
-      onError: (e) => console.log(`${e.error}, command will be sent again`)
+      // onError: (e) => console.log(`${e}, send command again`)
     }), req);
   }
 
@@ -156,109 +121,82 @@ class Network {
     return this.command("getParcelProcessingState", { parcelId: hashId });
   }
 
-  async isApprovedByNetwork(id, trustLevel, millisToWait) {
+  isApproved(id, trustLevel) {
     const self = this;
 
-    let tLevel = trustLevel;
-    if (tLevel > 0.9) tLevel = 0.9;
+    return new Promise((resolve, reject) => {
+      let tLevel = trustLevel;
+      if (tLevel > 0.9) tLevel = 0.9;
 
-    const end = new Date((new Date()).getTime() + millisToWait).getTime();
-    let Nt = Math.ceil(this.size() * tLevel);
-    if (Nt < 1) Nt = 1;
-    const N10 = (Math.floor(this.size() * 0.1)) + 1;
-    const Nn = Math.max(Nt + 1, N10);
+      // const end = new Date((new Date()).getTime() + millisToWait).getTime();
+      let Nt = Math.ceil(self.size() * tLevel);
+      if (Nt < 1) Nt = 1;
+      const N10 = (Math.floor(self.size() * 0.1)) + 1;
+      const Nn = Math.max(Nt + 1, N10);
+      let resultFound = false;
 
-    const positive = new Set();
-    const negative = new Set();
-    const shouldRetry = new Set();
-    const unprocessed = new Set([...Array(this.size()).keys()]);
-    const requests = [];
-    const states = [];
+      let positive = 0;
+      let negative = 0;
+      const requests = [];
+      const ids = Object.keys(self.topology.nodes);
 
-    const isPending = (state) =>
-      state.indexOf("PENDING") === 0 || state.indexOf("LOCKED") === 0;
+      const isPending = (state) =>
+        state.indexOf("PENDING") === 0 || state.indexOf("LOCKED") === 0;
 
-    const buildResult = (isApproved) => {
-      return {
-        states,
-        isApproved,
-        positive,
-        negative
-      };
-    };
+      function success(status) {
+        if (resultFound) return;
 
-    async function processNode(nodeIndex) {
-      const conn = await self.nodeConnection(nodeIndex);
-      const req = self.checkContract(id);
-      let response;
+        resultFound = true;
+        resolve(status);
+      }
 
-      requests.push(req);
+      function failure(err) {
+        if (resultFound) return;
 
-      try {
-        response = await req;
-        const { itemResult } = response;
-        const { state } = itemResult;
+        resultFound = true;
+        reject(err);
+      }
 
-        if (isPending(state)) shouldRetry.add(nodeIndex);
-        else {
-          states.push(itemResult);
-          if (state === "APPROVED") positive.add(nodeIndex);
-          else negative.add(nodeIndex);
+      function processNext() {
+        if(!resultFound && ids.length > 0) {
+          processNode(ids.pop());
         }
       }
-      catch (err) { shouldRetry.add(nodeIndex); }
-    }
 
-    async function processSet() {
-      const targetSet = (shouldRetry.size) ? shouldRetry : unprocessed;
-
-      if (!targetSet.size)
-        throw new Error("all nodes responded with no result");
-
-      const queue = [];
-
-      console.log("-------------------------------------- fill queue");
-
-      targetSet.forEach(idx => {
-        targetSet.delete(idx);
-        queue.push(processNode(idx));
-      });
-
-      console.log("-------------------------------------- start wait");
-
-      await Promise.all(queue);
-
-      console.log("-------------------------------------- done wait");
-
-      if (negative.size < N10 && positive.size < Nt) processSet();
-    }
-
-    async function check() {
-      if (negative.size >= N10) {
-        requests.map(req => req.abort());
-        return buildResult(false);
+      function processVote(state, nodeId) {
+        if (resultFound) return;
+        if (isPending(state)) return ids.unshift(nodeId);
+        if (state === "APPROVED") {
+          positive++;
+          if (positive >= Nt) return success(true);
+        }
+        else {
+          negative++;
+          if (negative >= N10) return success(false);
+        }
       }
 
-      if (positive.size >= Nt) {
-        requests.map(req => req.abort());
-        return buildResult(true);
+      async function processNode(nodeId) {
+        if (resultFound) return;
+
+        try {
+          const conn = await self.nodeConnection(nodeId);
+          if (resultFound) return;
+          const req = self.checkContract(id);
+          requests.push(req);
+          const response = await req;
+          const { itemResult } = response;
+          const { state } = itemResult;
+
+          processVote(response.itemResult.state, nodeId);
+        } catch (err) {
+          if (ids.length > 0) processNext()
+          else failure(new Error("not enough responses"));
+        }
       }
 
-      const now = (new Date()).getTime();
-
-      if (now > end) {
-        requests.map(req => req.abort());
-
-        throw new Error("requests timeout");
-      }
-
-      await new Promise(r => setTimeout(r, 100));
-
-      return check();
-    }
-
-    processSet();
-    return check();
+      for (let i = 0; i < Nt; i++) processNext();
+    });
   }
 }
 
