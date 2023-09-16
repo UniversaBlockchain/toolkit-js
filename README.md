@@ -1,3 +1,10 @@
+> Important. This package is outdated and no more maintained. We urge our users to switch to
+> [universa-core](https://www.npmjs.com/package/universa-core) NPM module.
+
+# This package contains dependency vulnerabilitues so please don't use it anymore.
+
+We're archiving it.
+
 ## universa-toolkit
 
 Minimalistic Javascript library required to perform basic operations with Universa Network, based on universa-minicrypto.
